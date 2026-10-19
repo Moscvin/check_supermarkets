@@ -58,6 +58,12 @@ async function searchRows(db: D1Database, terms: string[]): Promise<Row[]> {
 export async function findCandidates(db: D1Database, item: ListItem): Promise<Offer[]> {
   let rows = await searchRows(db, item.terms);
   if (!rows.length && item.terms.length > 1) rows = await searchRows(db, item.terms.slice(0, 1));
+  // plural românesc: „paini” → „paine”
+  if (!rows.length && item.terms[0].endsWith("ini")) rows = await searchRows(db, [`${item.terms[0].slice(0, -3)}ine`]);
+  // plural / alte forme: „paini” → „pain*” găsește „paine”
+  for (let cut = 1; !rows.length && cut <= 2 && item.terms[0].length - cut >= 4; cut++) {
+    rows = await searchRows(db, [item.terms[0].slice(0, -cut)]);
+  }
   const byStore = new Map<string, { score: number; offer: Offer }[]>();
   rows.forEach((r) => {
     const offer: Offer = {

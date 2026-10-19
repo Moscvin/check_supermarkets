@@ -7,10 +7,14 @@ const COUNT_RE = /(?:^|\s)(?:x\s*(\d+)|(\d+)\s*x)(?=\s|$)/;
 const QTY_WORDS_RE = /\d+(?:\.\d+)?\s*(kg|gr|g|ml|cl|l|buc)\b/g;
 export const MAX_ITEMS = 40;
 
+// cuvinte care nu sunt produse (normalizate, fără diacritice); numeralele devin „count”
+const STOPWORDS = new Set(["un", "o", "niste", "vreau", "as", "vrea", "si", "cu", "de", "pentru", "la", "litru", "litri", "kilogram"]);
+const NUMBER_WORDS: Record<string, number> = { doua: 2, doi: 2, trei: 3, patru: 4, cinci: 5, sase: 6, sapte: 7, opt: 8, noua: 9, zece: 10 };
+
 /** Rezerva fără AI: un produs pe rând, „produs [cantitate] [xN]” (ca în compare/matcher.py). */
 export function parseLines(text: string): ListItem[] {
   return text
-    .split("\n")
+    .split(/[\n;]|(?<!\d),|,(?!\d)|\s+(?:și|si)\s+/) // rânduri sau virgule, dar nu zecimalele („2,5%”)
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith("#"))
     .slice(0, MAX_ITEMS)
@@ -22,8 +26,14 @@ export function parseLines(text: string): ListItem[] {
         count = Number(m[1] ?? m[2]);
         norm = `${norm.slice(0, m.index)} ${norm.slice(m.index + m[0].length)}`.trim();
       }
-      const terms = words(norm.replace(QTY_WORDS_RE, " ")).filter((w) => w.length >= 2 || w.endsWith("%"));
-      return { raw, terms, qty: parseQuantity(norm), count };
+      let qty = parseQuantity(norm);
+      const terms: string[] = [];
+      for (const w of words(norm.replace(QTY_WORDS_RE, " "))) {
+        if (w in NUMBER_WORDS) count = Math.max(count, NUMBER_WORDS[w]);
+        else if (/^\d+$/.test(w)) qty ??= { amount: Number(w), unit: "buc" }; // „10 oua” = 10 bucăți
+        else if (!STOPWORDS.has(w) && (w.length >= 2 || w.endsWith("%"))) terms.push(w);
+      }
+      return { raw, terms, qty, count };
     })
     .filter((item) => item.terms.length);
 }

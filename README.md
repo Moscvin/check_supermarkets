@@ -66,8 +66,8 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 
 În GitHub (Settings → Secrets and variables → Actions) adaugă `CLOUDFLARE_API_TOKEN` (drept „D1: Edit”)
 și `CLOUDFLARE_ACCOUNT_ID`, apoi rulează manual workflow-ul „Actualizare prețuri” (Actions → Run workflow).
-AI-ul e orice API compatibil OpenAI, configurat în `worker/wrangler.jsonc` (`LLM_API_URL`, `LLM_MODEL`) + secretul `LLM_API_KEY`.
-Implicit: Gemini `gemini-2.5-flash-lite` (plan gratuit). Pentru Grok (cu plată): `LLM_API_URL=https://api.x.ai/v1/chat/completions`,
+AI-ul e orice API compatibil OpenAI, configurat în `worker/wrangler.jsonc` (`LLM_API_URL`; la Gemini nativ modelul e chiar în URL) + secretul `LLM_API_KEY`.
+Implicit: Gemini `gemini-3.5-flash-lite` (plan gratuit). Pentru Grok (cu plată): `LLM_API_URL=https://api.x.ai/v1/chat/completions`,
 `LLM_MODEL=grok-4.20-0309-non-reasoning` și cheia xAI ca `LLM_API_KEY`.
 D1 gratuit permite 100k scrieri pe zi, deci încărcarea inițială (~42.000 de produse) se completează în 3 zile.
 Test local fără Telegram: `npx wrangler dev` cu `DEBUG=1` în `worker/.dev.vars`, apoi `GET /debug?list=lapte,paine`.

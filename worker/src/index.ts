@@ -1,4 +1,4 @@
-// Worker Cloudflare: webhook Telegram → listă (Grok) → căutare în D1 → raport.
+// Worker Cloudflare: webhook Telegram → listă (LLM) → căutare în D1 → raport.
 import { MAX_ITEMS, parseList } from "./list";
 import { buildReport, splitMessage } from "./report";
 import type { Env } from "./types";

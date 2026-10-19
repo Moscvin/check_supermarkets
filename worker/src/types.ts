@@ -4,8 +4,9 @@ export interface Env {
   DB: D1Database;
   TELEGRAM_BOT_TOKEN: string;
   TELEGRAM_SECRET: string; // verificat în headerul X-Telegram-Bot-Api-Secret-Token
-  XAI_API_KEY?: string; // fără cheie, botul merge cu potrivirea euristică
-  GROK_MODEL: string;
+  LLM_API_KEY?: string; // fără cheie, botul merge cu potrivirea euristică
+  LLM_API_URL: string; // endpoint compatibil OpenAI (chat/completions)
+  LLM_MODEL: string;
   DEBUG?: string; // "1" activează GET /debug?list=... (doar local, în .dev.vars)
 }
 

@@ -1,5 +1,5 @@
-// Transformă mesajul utilizatorului în articole de căutat: cu Grok (text liber) sau, ca rezervă, rând cu rând.
-import { askGrok } from "./grok";
+// Transformă mesajul utilizatorului în articole de căutat: cu un LLM (text liber) sau, ca rezervă, rând cu rând.
+import { askLlm } from "./llm";
 import { normalize, parseQuantity, words, type Unit } from "./normalize";
 import type { Env, ListItem } from "./types";
 
@@ -28,7 +28,7 @@ export function parseLines(text: string): ListItem[] {
     .filter((item) => item.terms.length);
 }
 
-interface GrokItem {
+interface LlmItem {
   label: string;
   terms: string[];
   qty_amount: number | null;
@@ -46,36 +46,17 @@ Transformă-o într-o listă de articole. Pentru fiecare articol:
   Nu pune cantitatea în terms.
 - qty_amount + qty_unit: cantitatea dorită pentru O bucată/ambalaj, în kg, l sau buc (ex. 500g -> 0.5 kg; "10 oua" -> 10 buc). null dacă nu e specificată.
 - count: de câte ori (ex. "2 paini" -> count 2, qty null; "2 litri lapte" -> qty 2 l, count 1). Implicit 1.
-Ignoră ce nu e produs de cumpărat. Maximum ${MAX_ITEMS} articole.`;
+Ignoră ce nu e produs de cumpărat. Maximum ${MAX_ITEMS} articole.
+Răspunde DOAR cu JSON, exact în forma:
+{"items":[{"label":"lapte 2.5% 1l","terms":["lapte","2.5%"],"qty_amount":1,"qty_unit":"l","count":1}]}
+(qty_unit e "kg", "l" sau "buc"; qty_amount și qty_unit sunt null dacă nu e specificată cantitatea).`;
 
-const PARSE_SCHEMA = {
-  type: "object",
-  properties: {
-    items: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          label: { type: "string" },
-          terms: { type: "array", items: { type: "string" } },
-          qty_amount: { type: ["number", "null"] },
-          qty_unit: { type: ["string", "null"], enum: ["kg", "l", "buc", null] },
-          count: { type: "integer" },
-        },
-        required: ["label", "terms", "qty_amount", "qty_unit", "count"],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ["items"],
-  additionalProperties: false,
-};
 
 export async function parseList(text: string, env: Env): Promise<ListItem[]> {
-  if (env.XAI_API_KEY) {
+  if (env.LLM_API_KEY) {
     try {
-      const res = await askGrok<{ items: GrokItem[] }>(env, PARSE_PROMPT, text, "shopping_list", PARSE_SCHEMA);
-      const items = res.items
+      const res = await askLlm<{ items: LlmItem[] }>(env, PARSE_PROMPT, text);
+      const items = (Array.isArray(res.items) ? res.items : [])
         .slice(0, MAX_ITEMS)
         .map((it) => ({
           raw: it.label,
@@ -89,7 +70,7 @@ export async function parseList(text: string, env: Env): Promise<ListItem[]> {
         .filter((it) => it.terms.length);
       if (items.length) return items;
     } catch (e) {
-      console.error("Grok parseList a eșuat, folosesc parserul simplu:", e);
+      console.error("LLM parseList a eșuat, folosesc parserul simplu:", e);
     }
   }
   return parseLines(text);

@@ -8,11 +8,14 @@
       "binding": "DB",
       "database_name": "supermarket",
       // înlocuiește cu id-ul afișat de: npx wrangler d1 create supermarket
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "e405903d-5500-4389-aaf3-3ce8b8c9183c"
     }
   ],
   "vars": {
-    "GROK_MODEL": "grok-4.20-0309-non-reasoning"
+    // Gemini (gratuit): cheie de la aistudio.google.com. Pentru Grok: LLM_API_URL=https://api.x.ai/v1/chat/completions,
+    // LLM_MODEL=grok-4.20-0309-non-reasoning
+    "LLM_API_URL": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    "LLM_MODEL": "gemini-2.5-flash-lite"
   }
-  // Secrete (npx wrangler secret put <NUME>): TELEGRAM_BOT_TOKEN, TELEGRAM_SECRET, XAI_API_KEY
+  // Secrete (npx wrangler secret put <NUME>): TELEGRAM_BOT_TOKEN, TELEGRAM_SECRET, LLM_API_KEY
 }

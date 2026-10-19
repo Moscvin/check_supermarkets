@@ -77,6 +77,15 @@ def sql_value(v) -> str:
     return "'" + str(v).replace("'", "''") + "'"
 
 
+def _round_robin(statements: list[str]) -> list[str]:
+    """Alternează magazinele, ca încărcarea parțială (limita zilnică) să crească toate magazinele deodată."""
+    by_store: dict[str, list[str]] = {}
+    for st in statements:
+        by_store.setdefault(st.split("VALUES ('", 1)[1].split("'", 1)[0], []).append(st)
+    queues = list(by_store.values())
+    return [q[i] for i in range(max(map(len, queues), default=0)) for q in queues if i < len(q)]
+
+
 def build_sql(local: dict, remote: dict) -> tuple[list[str], dict]:
     stats = {"nou": 0, "modificat": 0, "șters": 0}
     inserts, changes, deletes = [], [], []
@@ -101,7 +110,7 @@ def build_sql(local: dict, remote: dict) -> tuple[list[str], dict]:
             if s == store and (s, pid) not in local:
                 stats["șters"] += 1
                 deletes.append(f"DELETE FROM products WHERE store={sql_value(s)} AND product_id={sql_value(pid)};")
-    return changes + deletes + inserts, stats  # ieftinele întâi, produsele noi la urmă
+    return changes + deletes + _round_robin(inserts), stats  # ieftinele întâi, produsele noi la urmă
 
 
 def main() -> int:

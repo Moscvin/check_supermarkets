@@ -1,10 +1,10 @@
-// Caută candidații fiecărui articol în D1 (FTS5), lasă Grok să elimine produsele nepotrivite,
+// Caută candidații fiecărui articol în D1 (FTS5), lasă un LLM să elimine produsele nepotrivite,
 // apoi alege oferta cea mai ieftină din fiecare magazin pentru cantitatea dorită.
-import { askGrok } from "./grok";
+import { askLlm } from "./llm";
 import { formatQuantity, words, type Quantity, type Unit } from "./normalize";
 import type { Choice, Env, ListItem, Offer } from "./types";
 
-const PER_STORE = 12; // câți candidați per magazin trimitem lui Grok
+const PER_STORE = 12; // câți candidați per magazin trimitem modelului
 const FTS_LIMIT = 300;
 
 interface Row {
@@ -80,7 +80,7 @@ export async function findCandidates(db: D1Database, item: ListItem): Promise<Of
   );
 }
 
-/** Fără Grok: păstrăm doar candidații cu cel mai bun scor din fiecare magazin. */
+/** Fără LLM: păstrăm doar candidații cu cel mai bun scor din fiecare magazin. */
 function heuristicFilter(item: ListItem, candidates: Offer[]): Offer[] {
   const best = new Map<string, number>();
   for (const o of candidates) best.set(o.store, Math.max(best.get(o.store) ?? 0, headScore(item, o.norm)));
@@ -93,29 +93,14 @@ Pentru fiecare articol din lista utilizatorului primești candidați găsiți pr
 (același tip de produs; caracteristicile cerute explicit, ex. 2.5% grăsime, trebuie respectate).
 Exclude produsele care doar conțin cuvântul (ex. pentru "lapte": exclude "ciocolată cu lapte", "biscuiți cu lapte";
 pentru "unt": exclude "unt de somon"; pentru "ouă": exclude "ouă de ciocolată").
-Nu alege după preț, doar după potrivire. Dacă niciun candidat nu e potrivit, întoarce o listă goală.`;
+Nu alege după preț, doar după potrivire. Dacă niciun candidat nu e potrivit, întoarce o listă goală.
+Răspunde DOAR cu JSON, exact în forma: {"items":[{"item":0,"ids":["c0","c3"]},{"item":1,"ids":[]}]}`;
 
-const SELECT_SCHEMA = {
-  type: "object",
-  properties: {
-    items: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: { item: { type: "integer" }, ids: { type: "array", items: { type: "string" } } },
-        required: ["item", "ids"],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ["items"],
-  additionalProperties: false,
-};
 
-/** Pentru fiecare articol: candidații potriviți. Grok dacă e disponibil, altfel euristica. */
+/** Pentru fiecare articol: candidații potriviți. LLM dacă e disponibil, altfel euristica. */
 export async function filterCandidates(env: Env, items: ListItem[], candidates: Offer[][]): Promise<Offer[][]> {
   const fallback = () => items.map((item, i) => heuristicFilter(item, candidates[i]));
-  if (!env.XAI_API_KEY || candidates.every((c) => !c.length)) return fallback();
+  if (!env.LLM_API_KEY || candidates.every((c) => !c.length)) return fallback();
 
   // id-uri scurte (c0, c1, …) ca să economisim tokeni
   const short = new Map<string, Offer>();
@@ -131,12 +116,10 @@ export async function filterCandidates(env: Env, items: ListItem[], candidates: 
   });
 
   try {
-    const res = await askGrok<{ items: { item: number; ids: string[] }[] }>(
-      env, SELECT_PROMPT, lines.join("\n").trim(), "matches", SELECT_SCHEMA,
-    );
+    const res = await askLlm<{ items: { item: number; ids: string[] }[] }>(env, SELECT_PROMPT, lines.join("\n").trim());
     const chosen: Offer[][] = items.map(() => []);
-    for (const { item, ids } of res.items) {
-      if (!chosen[item]) continue;
+    for (const { item, ids } of Array.isArray(res.items) ? res.items : []) {
+      if (!chosen[item] || !Array.isArray(ids)) continue;
       for (const id of ids) {
         const o = short.get(id);
         if (o && candidates[item].includes(o)) chosen[item].push(o);
@@ -144,7 +127,7 @@ export async function filterCandidates(env: Env, items: ListItem[], candidates: 
     }
     return chosen;
   } catch (e) {
-    console.error("Grok filterCandidates a eșuat, folosesc euristica:", e);
+    console.error("LLM filterCandidates a eșuat, folosesc euristica:", e);
     return fallback();
   }
 }

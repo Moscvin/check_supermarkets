@@ -41,7 +41,7 @@ Botul reîncarcă automat prețurile când scraperele actualizează baza de date
 
 ```
 GitHub Actions (zilnic) → scrapere Python → Cloudflare D1 ← Worker TypeScript ← webhook Telegram
-                                                              └→ Grok (înțelege lista, alege produsele)
+                                                              └→ LLM (Gemini gratuit; înțelege lista, alege produsele)
 ```
 
 Pași (o singură dată; cheile le introduci tu, nu sunt în repo):
@@ -53,7 +53,7 @@ npx wrangler d1 create supermarket          # copiază database_id în wrangler.
 npx wrangler d1 execute supermarket --remote --file schema.sql
 npx wrangler secret put TELEGRAM_BOT_TOKEN   # tokenul de la @BotFather
 npx wrangler secret put TELEGRAM_SECRET      # un șir aleatoriu lung, ex.: openssl rand -hex 32
-npx wrangler secret put XAI_API_KEY          # cheia de pe console.x.ai (opțional: fără ea merge fără Grok)
+npx wrangler secret put LLM_API_KEY          # cheia Gemini (gratuită) de la aistudio.google.com; opțional, fără ea botul merge fără AI
 npx wrangler deploy                          # afișează URL-ul https://supermarket-bot.<cont>.workers.dev
 ```
 
@@ -66,5 +66,8 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 
 În GitHub (Settings → Secrets and variables → Actions) adaugă `CLOUDFLARE_API_TOKEN` (drept „D1: Edit”)
 și `CLOUDFLARE_ACCOUNT_ID`, apoi rulează manual workflow-ul „Actualizare prețuri” (Actions → Run workflow).
+AI-ul e orice API compatibil OpenAI, configurat în `worker/wrangler.jsonc` (`LLM_API_URL`, `LLM_MODEL`) + secretul `LLM_API_KEY`.
+Implicit: Gemini `gemini-2.5-flash-lite` (plan gratuit). Pentru Grok (cu plată): `LLM_API_URL=https://api.x.ai/v1/chat/completions`,
+`LLM_MODEL=grok-4.20-0309-non-reasoning` și cheia xAI ca `LLM_API_KEY`.
 D1 gratuit permite 100k scrieri pe zi, deci încărcarea inițială (~42.000 de produse) se completează în 3 zile.
 Test local fără Telegram: `npx wrangler dev` cu `DEBUG=1` în `worker/.dev.vars`, apoi `GET /debug?list=lapte,paine`.

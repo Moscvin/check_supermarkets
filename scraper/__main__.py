@@ -1,9 +1,14 @@
-"""Rulare: python -m scraper [linella] [familymarket]  (fără argumente = toate magazinele)."""
+"""Rulare: python -m scraper [linella] [familymarket] [metro] [bonus]  (fără argumente = toate magazinele)."""
 import sys
+from functools import partial
 
-from . import db, familymarket, linella
+from . import db, familymarket, linella, zakaz
 
-SCRAPERS = {linella.STORE: linella.scrape, familymarket.STORE: familymarket.scrape}
+SCRAPERS = {
+    linella.STORE: linella.scrape,
+    familymarket.STORE: familymarket.scrape,
+    **{store: partial(zakaz.scrape, store) for store in zakaz.STORES},
+}
 
 
 def main() -> int:

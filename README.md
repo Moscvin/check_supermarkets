@@ -6,6 +6,7 @@ Colectează prețurile din supermarketurile din Chișinău într-o bază SQLite 
 |---|---|
 | Linella | HTML din căutarea CS-Cart (`/cautare/?q=`), 100 produse/pagină |
 | Family Market | JSON Inertia (`/ro/catalog` cu headerul `X-Inertia`), include cod de bare |
+| Metro, Bonus | API public zakaz.md (`stores-api.zakaz.md`), include cod de bare |
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
@@ -14,3 +15,13 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
 Tabele: `products` (ultima stare a fiecărui produs) și `prices` (un preț pe zi, pentru istoric).
+
+## Compararea unei liste
+
+```bash
+.venv/bin/python -m compare lista_exemplu.txt
+```
+
+Un produs pe rând: `produs [cantitate] [xN]`, ex. `lapte 2.5% 1l`, `rosii 1kg`, `paine x2`.
+Afișează totalul pe magazin, cel mai ieftin magazin cu toată lista și coșul împărțit între magazine.
+Fără cantitate, se folosește ambalajul tipic al produsului, ca magazinele să fie comparate corect.

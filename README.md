@@ -25,3 +25,14 @@ Tabele: `products` (ultima stare a fiecărui produs) și `prices` (un preț pe z
 Un produs pe rând: `produs [cantitate] [xN]`, ex. `lapte 2.5% 1l`, `rosii 1kg`, `paine x2`.
 Afișează totalul pe magazin, cel mai ieftin magazin cu toată lista și coșul împărțit între magazine.
 Fără cantitate, se folosește ambalajul tipic al produsului, ca magazinele să fie comparate corect.
+
+## Botul Telegram
+
+Pune tokenul în `.env` (ignorat de git): `TELEGRAM_BOT_TOKEN=...`, apoi:
+
+```bash
+.venv/bin/python -m bot
+```
+
+Trimite botului lista (un produs pe rând). `/scurt` + listă = doar totalurile.
+Botul reîncarcă automat prețurile când scraperele actualizează baza de date.

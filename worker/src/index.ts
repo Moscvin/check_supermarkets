@@ -80,7 +80,35 @@ async function showStatus(env: Env, chatId: number): Promise<void> {
   await send(env, chatId, run ? `Ultima actualizare: ${describeRun(run)}` : "Nu a rulat nicio actualizare încă.", SYNC_BUTTON);
 }
 
+// Meniul „Menu” de lângă câmpul de mesaj (lista de comenzi cu descrieri).
+const PUBLIC_COMMANDS = [
+  { command: "start", description: "Cum folosești botul" },
+  { command: "help", description: "Exemple de liste de cumpărături" },
+  { command: "scurt", description: "Doar totalurile: /scurt lapte, paine" },
+];
+const OWNER_COMMANDS = [
+  ...PUBLIC_COMMANDS,
+  { command: "actualizeaza", description: "Actualizează prețurile din magazine" },
+  { command: "status", description: "Starea ultimei actualizări" },
+  { command: "id", description: "Id-ul acestui chat" },
+];
+let menuReady = false; // o dată pe instanță; setarea e idempotentă, deci repetarea nu strică
+
+async function ensureMenu(env: Env): Promise<void> {
+  if (menuReady) return;
+  menuReady = true;
+  await telegram(env, "setMyCommands", { commands: PUBLIC_COMMANDS });
+  await telegram(env, "setChatMenuButton", { menu_button: { type: "commands" } });
+  if (env.OWNER_CHAT_ID) {
+    await telegram(env, "setMyCommands", {
+      commands: OWNER_COMMANDS,
+      scope: { type: "chat", chat_id: Number(env.OWNER_CHAT_ID) },
+    });
+  }
+}
+
 async function handle(env: Env, chatId: number, text: string): Promise<void> {
+  await ensureMenu(env);
   const command = /^\/(\w+)(?:@\w+)?\s*([\s\S]*)$/.exec(text);
   let details = true;
   let body = text;

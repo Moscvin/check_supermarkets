@@ -1,0 +1,37 @@
+name: Actualizare prețuri
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # zilnic, 02:00 UTC (04:00-05:00 în Chișinău)
+  workflow_dispatch: {}
+
+concurrency: update-prices
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx "selectolax>=1.0"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+        working-directory: worker
+
+      # un magazin căzut nu oprește restul: d1_sync nu șterge nimic dintr-un magazin cu prea puține produse
+      - name: Scraping
+        run: python -m scraper
+        continue-on-error: true
+
+      - name: Sincronizare în Cloudflare D1
+        run: python -m scraper.d1_sync
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

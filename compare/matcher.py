@@ -5,7 +5,7 @@ import sqlite3
 from dataclasses import dataclass
 from statistics import median
 
-from .normalize import Quantity, normalize, parse_quantity, words
+from .normalize import Quantity, normalize, parse_quantity, product_quantity, words
 
 
 @dataclass
@@ -66,10 +66,7 @@ def load_offers(conn: sqlite3.Connection) -> list[tuple[Offer, list[str]]]:
     result = []
     for store, name, price, url, unit in rows:
         norm = normalize(name)
-        qty = parse_quantity(norm)
-        # cantitatea din câmpul `unit` (zakaz: „1000 ml”, „1 kg” la cântar). „0.91 buc” de la Family Market e greutate brută, o ignorăm.
-        if qty is None and unit and not unit.lower().endswith("buc"):
-            qty = parse_quantity(normalize(unit))
+        qty, _ = product_quantity(norm, unit)
         result.append((Offer(store, name, price, qty, url), words(norm)))
     return result
 

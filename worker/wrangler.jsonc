@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "supermarket-bot",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "supermarket",
+      // înlocuiește cu id-ul afișat de: npx wrangler d1 create supermarket
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "vars": {
+    "GROK_MODEL": "grok-4.20-0309-non-reasoning"
+  }
+  // Secrete (npx wrangler secret put <NUME>): TELEGRAM_BOT_TOKEN, TELEGRAM_SECRET, XAI_API_KEY
+}

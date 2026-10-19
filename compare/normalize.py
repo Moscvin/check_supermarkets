@@ -69,3 +69,16 @@ def parse_quantity(text: str) -> Quantity | None:
     if _BY_WEIGHT_RE.search(text):
         return Quantity(1.0, "kg")
     return None
+
+
+def product_quantity(norm_name: str, unit: str | None) -> tuple[Quantity | None, bool]:
+    """(cantitatea ambalajului, vândut la cântar?) pentru un produs din baza de date.
+
+    `unit` vine de la scraper: zakaz dă „1000 ml” / „1 kg” (la cântar); Family Market dă „1 Kg” la cântar,
+    iar „0.91 buc” e greutatea brută, pe care o ignorăm.
+    """
+    qty = parse_quantity(norm_name)
+    if qty is None and unit and not unit.lower().endswith("buc"):
+        qty = parse_quantity(normalize(unit))
+    by_weight = qty is not None and qty.unit == "kg" and qty.amount == 1.0 and not re.search(r"\d\s*kg", norm_name)
+    return qty, by_weight

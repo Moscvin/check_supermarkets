@@ -1,8 +1,7 @@
 name: Actualizare prețuri
 
+# Pornește doar la cerere: din Telegram (/actualizeaza sau butonul din bot) sau manual din GitHub (Run workflow).
 on:
-  schedule:
-    - cron: "0 2 * * *" # zilnic, 02:00 UTC (04:00-05:00 în Chișinău)
   workflow_dispatch: {}
 
 concurrency: update-prices

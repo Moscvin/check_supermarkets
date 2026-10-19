@@ -15,7 +15,8 @@
     // Gemini nativ (gratuit; cheia de la aistudio.google.com merge în x-goog-api-key); modelul e în URL.
     // Pentru Grok: LLM_API_URL=https://api.x.ai/v1/chat/completions, LLM_MODEL=grok-4.20-0309-non-reasoning
     "LLM_API_URL": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
-    "LLM_MODEL": "gemini-3.5-flash-lite"
+    "LLM_MODEL": "gemini-3.5-flash-lite",
+    "GITHUB_REPO": "Moscvin/check_supermarkets"
   }
-  // Secrete (npx wrangler secret put <NUME>): TELEGRAM_BOT_TOKEN, TELEGRAM_SECRET, LLM_API_KEY
+  // Secrete (npx wrangler secret put <NUME>): TELEGRAM_BOT_TOKEN, TELEGRAM_SECRET, LLM_API_KEY, GITHUB_TOKEN; OWNER_CHAT_ID = numărul de la /id
 }

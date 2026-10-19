@@ -7,6 +7,9 @@ export interface Env {
   LLM_API_KEY?: string; // fără cheie, botul merge cu potrivirea euristică
   LLM_API_URL: string; // endpoint compatibil OpenAI (chat/completions)
   LLM_MODEL: string;
+  GITHUB_TOKEN?: string; // secret: token fin (doar acest repo, Actions: Read and write); fără el, butonul de actualizare nu merge
+  GITHUB_REPO: string; // owner/repo
+  OWNER_CHAT_ID?: string; // doar acest chat poate porni actualizarea (află-l cu /id)
   DEBUG?: string; // "1" activează GET /debug?list=... (doar local, în .dev.vars)
 }
 

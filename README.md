@@ -40,7 +40,7 @@ Botul reîncarcă automat prețurile când scraperele actualizează baza de date
 ## Rulare în Cloudflare (gratuit, calculatorul poate fi oprit)
 
 ```
-GitHub Actions (zilnic) → scrapere Python → Cloudflare D1 ← Worker TypeScript ← webhook Telegram
+GitHub Actions (la cerere, din Telegram) → scrapere Python → Cloudflare D1 ← Worker TypeScript ← webhook Telegram
                                                               └→ LLM (Gemini gratuit; înțelege lista, alege produsele)
 ```
 
@@ -69,5 +69,16 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 AI-ul e orice API compatibil OpenAI, configurat în `worker/wrangler.jsonc` (`LLM_API_URL`; la Gemini nativ modelul e chiar în URL) + secretul `LLM_API_KEY`.
 Implicit: Gemini `gemini-3.5-flash-lite` (plan gratuit). Pentru Grok (cu plată): `LLM_API_URL=https://api.x.ai/v1/chat/completions`,
 `LLM_MODEL=grok-4.20-0309-non-reasoning` și cheia xAI ca `LLM_API_KEY`.
+### Actualizarea prețurilor din Telegram
+
+Workflow-ul „Actualizare prețuri” nu rulează după orar, ci **la cerere**: botul îl pornește prin API-ul GitHub.
+Doar proprietarul poate: `/actualizeaza` sau butonul „🔄 Actualizează prețurile” (apare în `/start` și `/status`);
+`/status` arată ultima rulare; `/id` afișează id-ul chatului.
+
+Configurare (o singură dată):
+1. Trimite `/id` botului și pune numărul în `worker/wrangler.jsonc`, la `vars`: `"OWNER_CHAT_ID": "<numărul>"`, apoi `npx wrangler deploy`.
+2. Creează pe github.com/settings/personal-access-tokens/new un token fin: doar repository-ul acesta, permisiunea
+   *Actions: Read and write*. Salvează-l: `npx wrangler secret put GITHUB_TOKEN` (valoarea o lipești la prompt).
+
 D1 gratuit permite 100k scrieri pe zi, deci încărcarea inițială (~42.000 de produse) se completează în 3 zile.
 Test local fără Telegram: `npx wrangler dev` cu `DEBUG=1` în `worker/.dev.vars`, apoi `GET /debug?list=lapte,paine`.

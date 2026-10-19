@@ -1,4 +1,5 @@
 // Worker Cloudflare: webhook Telegram → listă (LLM) → căutare în D1 → raport.
+import { dispatch, latestRun, type Run } from "./github";
 import { MAX_ITEMS, parseList } from "./list";
 import { buildReport, splitMessage } from "./report";
 import type { Env } from "./types";
@@ -10,10 +11,14 @@ const HELP = `Trimite-mi lista de cumpărături, <b>scrisă cum vrei</b>:
 Îți spun cât costă în fiecare magazin (Linella, Family Market, Metro, Bonus), unde e cel mai ieftin și cât economisești dacă împarți coșul.
 
 Pune cantitatea (<code>1l</code>, <code>500g</code>, <code>1kg</code>) pentru o comparație corectă; <code>x2</code> = două bucăți.
-/scurt + listă = doar totalurile, fără detalii.`;
+/scurt + listă = doar totalurile, fără detalii.
+/actualizeaza = reîncarcă prețurile din magazine (doar proprietarul), /status = starea ultimei actualizări.`;
+
+const SYNC_BUTTON = { inline_keyboard: [[{ text: "🔄 Actualizează prețurile", callback_data: "sync" }]] };
 
 interface Update {
   message?: { chat: { id: number }; text?: string; message_id: number };
+  callback_query?: { id: string; data?: string; message?: { chat: { id: number } } };
 }
 
 async function telegram(env: Env, method: string, body: object): Promise<void> {
@@ -25,10 +30,55 @@ async function telegram(env: Env, method: string, body: object): Promise<void> {
   if (!res.ok) console.error(`Telegram ${method} ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }
 
-const send = (env: Env, chat_id: number, text: string) =>
+const send = (env: Env, chat_id: number, text: string, reply_markup?: object) =>
   telegram(env, "sendMessage", {
-    chat_id, text, parse_mode: "HTML", link_preview_options: { is_disabled: true },
+    chat_id, text, parse_mode: "HTML", link_preview_options: { is_disabled: true }, reply_markup,
   });
+
+const isOwner = (env: Env, chatId: number) => !!env.OWNER_CHAT_ID && String(chatId) === env.OWNER_CHAT_ID.trim();
+
+const when = (iso: string) =>
+  new Date(iso).toLocaleString("ro-RO", { timeZone: "Europe/Chisinau", dateStyle: "short", timeStyle: "short" });
+
+function describeRun(run: Run): string {
+  const state =
+    run.status !== "completed" ? "⏳ rulează" : run.conclusion === "success" ? "✅ reușită" : `❌ ${run.conclusion ?? "eșuată"}`;
+  return `${state}, pornită ${when(run.createdAt)} — <a href="${run.url}">detalii</a>`;
+}
+
+/** Verificări comune pentru comenzile care ating GitHub: doar proprietarul, doar cu token. */
+async function guardOwner(env: Env, chatId: number): Promise<boolean> {
+  if (!env.OWNER_CHAT_ID) {
+    await send(env, chatId, "Proprietarul nu e setat. Trimite /id și pune numărul în configurația botului.");
+    return false;
+  }
+  if (!isOwner(env, chatId)) {
+    await send(env, chatId, "Doar proprietarul botului poate actualiza prețurile.");
+    return false;
+  }
+  if (!env.GITHUB_TOKEN) {
+    await send(env, chatId, "Lipsește secretul GITHUB_TOKEN în Cloudflare, deci nu pot porni actualizarea.");
+    return false;
+  }
+  return true;
+}
+
+async function startSync(env: Env, chatId: number): Promise<void> {
+  if (!(await guardOwner(env, chatId))) return;
+  const run = await latestRun(env);
+  // un singur job odată: nu risipim scrierile gratuite D1 (100.000 pe zi)
+  if (run && run.status !== "completed") {
+    return void (await send(env, chatId, `O actualizare rulează deja: ${describeRun(run)}`));
+  }
+  await dispatch(env);
+  await send(env, chatId, "✅ Actualizarea a pornit. Durează aproximativ 20 de minute; vezi starea cu /status.");
+}
+
+async function showStatus(env: Env, chatId: number): Promise<void> {
+  if (!(await guardOwner(env, chatId))) return;
+  const run = await latestRun(env);
+  await send(env, chatId, run ? `Ultima actualizare: ${describeRun(run)}` : "Nu a rulat nicio actualizare încă.", SYNC_BUTTON);
+}
 
 async function handle(env: Env, chatId: number, text: string): Promise<void> {
   const command = /^\/(\w+)(?:@\w+)?\s*([\s\S]*)$/.exec(text);
@@ -36,7 +86,12 @@ async function handle(env: Env, chatId: number, text: string): Promise<void> {
   let body = text;
   if (command) {
     const [, name, rest] = command;
-    if (name === "start" || name === "help") return void (await send(env, chatId, HELP));
+    if (name === "start" || name === "help") {
+      return void (await send(env, chatId, HELP, isOwner(env, chatId) ? SYNC_BUTTON : undefined));
+    }
+    if (name === "id") return void (await send(env, chatId, `Id-ul acestui chat: <code>${chatId}</code>`));
+    if (name === "actualizeaza") return void (await startSync(env, chatId));
+    if (name === "status") return void (await showStatus(env, chatId));
     if (name !== "scurt") return void (await send(env, chatId, "Comandă necunoscută. Scrie /help."));
     if (!rest.trim()) return void (await send(env, chatId, "Scrie lista după comandă, ex.:\n<code>/scurt lapte 1l, paine</code>"));
     details = false;
@@ -63,7 +118,19 @@ export default {
       }
       const update = (await request.json()) as Update;
       const msg = update.message;
-      if (msg?.text) {
+      const cb = update.callback_query;
+      if (cb) {
+        const chatId = cb.message?.chat.id;
+        ctx.waitUntil(
+          (async () => {
+            await telegram(env, "answerCallbackQuery", { callback_query_id: cb.id });
+            if (cb.data === "sync" && chatId) await startSync(env, chatId);
+          })().catch(async (e) => {
+            console.error("callback a eșuat:", e);
+            if (chatId) await send(env, chatId, "Nu am putut porni actualizarea (eroare GitHub). Încearcă mai târziu.");
+          }),
+        );
+      } else if (msg?.text) {
         // răspundem imediat lui Telegram (altfel retrimite update-ul), iar lucrul real continuă în fundal
         ctx.waitUntil(
           handle(env, msg.chat.id, msg.text).catch(async (e) => {
